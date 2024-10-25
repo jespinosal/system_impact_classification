@@ -1,0 +1,9 @@
+langchain
+langchain-openai
+PyPDF2
+python-dotenv
+streamlit
+faiss-cpu
+pandas
+# notebook
+
