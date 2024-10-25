@@ -1,9 +1,10 @@
 langchain
 langchain-openai
+langgraph
 PyPDF2
 python-dotenv
 streamlit
-faiss-cpu
 pandas
+openpyxl
 # notebook
 
