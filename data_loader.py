@@ -60,20 +60,6 @@ class DataMerger:
     def load_pdf_files(self):
         pass
 
-
-class EquipmentNameMatcher:    
-    """Load table and generate group id based on text similarity of given column
-    """
-    def parse():
-        pass
-
-
-class DataAggregator:
-    """Generate a summary table taking into given an aggreation column and agg operation
-    """
-    def parse():
-        pass
-
-
+    
 if "__main__" == __name__:
     pass
