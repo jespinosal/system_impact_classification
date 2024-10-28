@@ -41,7 +41,12 @@ class EquipmentGroups(BaseModel):
     equipment_groups: List[EquipmentGroup]
 
 
-def estimate_equipment_group_names(equipment_list: List[str]):
+def estimate_equipment_group_names(equipment_list: List[str]) -> pd.DataFrame:
+    """
+    LLM call to generate equimpment group names based on similar equipments on equipment_list
+    # @todo modify prompt to focus on corner cases (like plural equipment names)
+    # @todo add Guardrails to a) Check all names exists b) Group name meet business requirements
+    """
     output_parser = PydanticOutputParser(pydantic_object = EquipmentGroups)
 
     output_format_instructions = output_parser.get_format_instructions()
