@@ -6,7 +6,7 @@ from config import config
 
 def main():
     # Load and merge data sources from different sites
-    print(f'Loading and mergering data sources cross all the sites from {config['folder_data_raw']}')
+    print(f"Loading and mergering data sources cross all the sites from {config['folder_data_raw']}")
     data_path = config['folder_data_raw']
     data_merger = DataMerger(data_path)
     df_merged = data_merger.merge_folder_files()
@@ -28,6 +28,7 @@ def main():
     map_answers = {'Yes':1, 'No': 0}
     df_merged_renamed[cols_bool] = df_merged_renamed[cols_bool].replace(map_answers).astype(int)
     df_agg_scores = df_merged_renamed[cols_bool+['equipment_group_name']].groupby(['equipment_group_name']).mean()
+    df_agg_scores = df_agg_scores.reset_index()
     print(df_agg_scores)
 
     # Save artifacts:
@@ -35,6 +36,10 @@ def main():
         print(f"Creating {config['folder_data_processed']} directory")
         os.makedirs(config['folder_data_processed'])
     print('Saving artifacts')
-    df_merged_renamed.to_csv(os.path.join(config['folder_data_processed'], "merged_historical_records.csv"))
-    df_group_names.to_csv(os.path.join(config['folder_data_processed'], "map_equipment_groups.csv"))
-    df_agg_scores.to_csv(os.path.join(config['folder_data_processed'], "equipment_group_probs.csv"))
+    df_merged_renamed.to_csv(os.path.join(config['folder_data_processed'], config['filename_merged_historical_records']), index=False)
+    df_group_names.to_csv(os.path.join(config['folder_data_processed'], config['filename_map_equipment_groups']), index=False)
+    df_agg_scores.to_csv(os.path.join(config['folder_data_processed'], config["filename_equipment_group_probs"]), index=False)
+
+
+if __name__=="__main__":
+    main()
