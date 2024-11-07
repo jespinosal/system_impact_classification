@@ -28,6 +28,8 @@ class AgentState(TypedDict):
 
 # Note: we can manage all the 8a question flow in one node. But having indivial flows will be benefitial for demo purposes and debugging.
 def df_string_encoder_decoder(df=None, df_str= None):
+    """As states are not seriallizable, we need to transform pandas to str to keed values in state and str to pandas to compute calculations
+    """
     # Step required to des-serialzie str DF. Cols should avoid whitespaces
     if df is None and isinstance(df_str, str):
         print('decoding str to pandas')
@@ -46,6 +48,8 @@ def df_string_encoder_decoder(df=None, df_str= None):
         
 
 def node_get_human_equipment(state: AgentState):
+    """Get human equioment name
+    """
     # @todo add regex for alphabetic - Camell case - Add Guardrails?? -
     print('-----------Node get human equipment-------------------')
     equipment = state['equipment'].strip()
@@ -54,6 +58,8 @@ def node_get_human_equipment(state: AgentState):
     return {'equipment': equipment, 'stage': stage, 'current_question_id':0, 'criteria_8b_status':False }# Default 8B false and current_question_id=0 as not possinle to setup default value 
 
 def node_rag(state:AgentState):
+    """Given human equipment find the most similar equipment group and return probs row wih the highest similarity
+    """
     # @todo add fallback case and actions to take in that situation. At the moment unknowk equipments will broke the code
     print('-----------Node RAG-------------------')
     user_equipment = state['equipment']
@@ -68,6 +74,10 @@ def node_rag(state:AgentState):
     return {'df_output': df_equipment_score_str,  'criteria_8a_status': value_8a, 'stage': stage, } 
 
 def eval_criteria_8a(state:AgentState):
+    """Rooting criteria de dermine if we need to proceed with questions or not.
+    criteria_8a_is_true : Proceed with questions
+    criteria_8a_is_false: Skip questions
+    """
     print("---Step 3---")
     if state['criteria_8a_status']:
         return 'criteria_8a_is_true'
@@ -75,17 +85,22 @@ def eval_criteria_8a(state:AgentState):
         return 'criteria_8a_is_false'
     
 def get_next_question(question_id:str, human_answer:str) -> dict:
-    """This allowxs yy the method managed 3 uses cases:
-    1- Start
-    2- Intermediate
-    3- End
+    """This method compute the next question shopuld be asked based on current question/answer the method managed 3 uses cases:
+
+    1- First step: For the first question is goint to ommit inputs, will return question 1 info ('question_1', "Content of question 1")
+    2- Intermediate step: we'll return the next question data (question_id,  question_str_next) 
+    3- Last step: Once last question is asked and answered this method will send ('question_end', 'Questionary is done') to indicate when to skip question loop
+
+    The dictionary 'questions' maps question_id with corresponding text.  
+    The question_id_edges describe the future step, given curren question and human answer which question should be asked?
 
     Args:
-        question_id (str): _description_
-        human_answer (str): _description_
+        question_id (str): id to identify question 
+        human_answer (str): yes/no answer of question in question_id
 
     Returns:
-        dict: _description_
+        dict: question_id_next: id of next question will be asked to human 
+              question_str_next: text of question that correspont to question_id_next
     """
 
     questions = {'question_1': "1. The issue is related to IT protocol 00x1?", 
@@ -113,6 +128,8 @@ def get_next_question(question_id:str, human_answer:str) -> dict:
     
 
 def node_question(state: AgentState):
+    """Get next question should be asked to human user
+    """
     print('-----------Node question-------------------')
     stage = state['stage'] + 1
     if stage ==3 : #first iteration
@@ -126,6 +143,10 @@ def node_question(state: AgentState):
     return {'ai_message': ai_message, 'current_question_id':current_question_id, 'stage': stage}
 
 def continue_questions(state: AgentState):
+    """Routing to determine if questionary loop is done
+    skip_questions : questionary is done proceed with next step
+    go_to_next_question: questionary need to be completed, iterate again on question loop
+    """
     last_question_id = state['current_question_id']
     if last_question_id == 'question_end':
         return 'skip_questions'
@@ -133,6 +154,9 @@ def continue_questions(state: AgentState):
         return 'go_to_next_question'
 
 def node_update_8b(state:AgentState):
+    """Logic to determine how to update criteria_8b_status. Bools answer based on last question and human answers on questionary loop
+    """
+    # @todo add real logic. 
     if state['criteria_8a_status']: # If questions has made
         last_human_message = state['human_message']
         criteria_8b_status = True if last_human_message=='yes' else False
@@ -142,6 +166,8 @@ def node_update_8b(state:AgentState):
     return {'criteria_8b_status': criteria_8b_status}
 
 def node_human_feedback(state):
+    """Interrupt graph execution if human feedback is needed. If questionary loop is done we can skip it.
+    """
     stage = state['stage'] + 1
     current_question_id = state['current_question_id']
     print("---node human_feedback---") 
@@ -174,6 +200,8 @@ def node_parse_output(state:AgentState)-> dict:
     return {'df_output': df_output_str, 'stage': stage} 
 
 def build_graph():
+    """Describe graph nodes and conextions (edges)
+    """
     # Node definitions
     builder = StateGraph(AgentState)
     builder.add_node("node_get_human_equipment", node_get_human_equipment)
@@ -209,7 +237,8 @@ if __name__ == "__main__":
     while stop_flag:
 
         for event in graph.stream(None, config, stream_mode="values"):
-            print(event)
+            print('------------------------step-----------------------------')
+            #print(event)
         
         if len(graph.get_state(config).next)==0: # if there are not more next steps to execute
             print('------------------------end----------------------------')
