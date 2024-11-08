@@ -1,14 +1,14 @@
 # System impact calssification 
 
-- Introduction:
+## Introduction:
 This GEN ai solution is based in langchain and langgraph to support SME's in manufactiring to get summaries from historical data of equipments. 
 The user need to provide equipment and answer questions from system to get a report (table) with results about historical records.
 
-Devs info config:
+## Devs info config:
 * Intalls requirements (if you want to run notebooks in playground need to "pip instal notebook" manually)
 * Create .env file with OpenAI Azure variables as .env_example describes
 
-Devs info execution: main files are pipeline_etl.py and bot.py that should be executed as follows:
+## Devs info execution: main files are pipeline_etl.py and bot.py that should be executed as follows:
 * pipeline_etl.py: If folder "data_processed" is empty, or historical recorsd (excel files) has changed. This script should be executed to updated records.
 The Scrip will provide 3 main outputs:
     *  data_processed\merged_historical_records.csv: Merge all the excel files available on data_raw
