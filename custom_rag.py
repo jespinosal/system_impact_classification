@@ -71,7 +71,35 @@ def get_rag_chain():
     return chain
 
 
-def get_equipment_scores(user_equipment:str) -> pd.DataFrame:
+async def get_equipment_scores(user_equipment:str) -> pd.DataFrame:
+    """Use LLM to find equipment group given user_equipment
+    Load equipment probs table and return value that matches equipment group
+ 
+    Args:
+        user_equipment (str): _description_
+
+    Returns:
+        pd.DataFrame: _description_
+    """
+
+    #Load data sources
+    path_equipment_group_probs = os.path.join(config['folder_data_processed'], config['filename_equipment_group_probs'])
+    df_equipment_group_probs = pd.read_csv(path_equipment_group_probs)
+
+    # Load and call chain
+    chain = get_rag_chain()
+    result = await chain.ainvoke({'user_equipment': user_equipment})
+    print('Equipment category analysis: ', result)
+
+    # Parse tables to Get equiment scores
+    df_equipment_probs = df_equipment_group_probs.copy()
+    equipment_group_name = result.equipment_group_name
+    df_equipment_probs = df_equipment_probs.loc[df_equipment_probs['equipment_group_name']==equipment_group_name]
+    df_equipment_probs['equipment_name'] = user_equipment
+    
+    return df_equipment_probs
+
+def get_equipment_scores_sync(user_equipment:str) -> pd.DataFrame:
     """Use LLM to find equipment group given user_equipment
     Load equipment probs table and return value that matches equipment group
  
@@ -103,5 +131,5 @@ def get_equipment_scores(user_equipment:str) -> pd.DataFrame:
 if __name__=="__main__":
     user_equipment = 'Cooler'
     print(f"RAG for input: {user_equipment}")
-    df_equipment_score = get_equipment_scores(user_equipment=user_equipment)
+    df_equipment_score = get_equipment_scores_sync(user_equipment=user_equipment)
     print("RAG Output:",df_equipment_score)
