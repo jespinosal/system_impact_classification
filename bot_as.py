@@ -243,6 +243,7 @@ async def main_call():
             break
 
         if graph.get_state(config).next[0] == 'node_human_feedback':
+            print("system question:", event['ai_message'])
             human_answer = input("Please answer the question with 'yes' or 'no':  ") 
             graph.update_state(config, {"human_message": human_answer}, as_node="node_human_feedback")
 
