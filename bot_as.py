@@ -2,7 +2,6 @@
 Implement Nodes to build conversational grahp: based on langchain and langgraph libraries
 """
 import os
-from io import StringIO
 from typing import List, Optional, Annotated
 from typing_extensions import TypedDict
 from operator import add
@@ -12,6 +11,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.errors import NodeInterrupt
 from config import config
 from custom_rag import get_equipment_scores
+from utils import  df_string_encoder_decoder
 
 class AgentState(TypedDict):
     stage: int
@@ -23,26 +23,6 @@ class AgentState(TypedDict):
     df_output: str # # pandas is not compatible "DataFrame is not serializable"
     current_question_id: str
 
-
-# Note: we can manage all the 8a question flow in one node. But having indivial flows will be benefitial for demo purposes and debugging.
-def df_string_encoder_decoder(df=None, df_str= None):
-    """As states are not seriallizable, we need to transform pandas to str to keed values in state and str to pandas to compute calculations
-    """
-    # Step required to des-serialzie str DF. Cols should avoid whitespaces
-    if df is None and isinstance(df_str, str):
-        print('decoding str to pandas')
-        df = pd.read_csv(StringIO(df_str), sep='\s+')
-        df['equipment_group_name'] = df['equipment_group_name'].apply(lambda x: x.replace("_", " "))
-        df.columns = [col.replace("_", " ") for col in df.columns]
-        return df
-    elif isinstance(df, pd.DataFrame) and df_str is None:
-        print('encoding str to pandas')
-        df.columns = [col.replace(" ", "_") for col in df.columns]
-        df['equipment_group_name'] = df['equipment_group_name'].apply(lambda x: x.replace(" ", '_'))
-        df_str = df.to_string(index=False)
-        return df_str
-    else:
-        raise(TypeError, "provide a valid pandas data frame or string parsed version")
         
 
 async def node_get_human_equipment(state: AgentState):
@@ -69,7 +49,8 @@ async def node_rag(state:AgentState):
     value_8a = True if df_equipment_score['Criteria 8a'].values[0]>0.5 else False
     print(f"According to historical data 'Criteria 8a' is : {value_8a}")
     df_equipment_score_str = df_string_encoder_decoder(df=df_equipment_score)
-    return {'df_output': df_equipment_score_str,  'criteria_8a_status': value_8a, 'stage': stage, } 
+    ai_message = f'Your request for {user_equipment} is done'
+    return {'df_output': df_equipment_score_str,  'criteria_8a_status': value_8a, 'stage': stage, 'ai_message': ai_message} 
 
 def eval_criteria_8a(state:AgentState):
     """Rooting criteria de dermine if we need to proceed with questions or not.
@@ -219,37 +200,105 @@ def build_graph():
     builder.add_edge("node_parse_output", END)
     return builder
 
-async def main_call():
-    print('------------------------start-----------------------------')
+async def main_call_bucle(): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+    
+    while True: # todo, delete loop for steamlit app call. As graph will know next step which each invoke, is not mandatory async call.
+                
+        if len(graph.get_state(config).values)==0: # First iteration
+            print('------------------------start-----------------------------')
+            ai_message = 'Hi! Please indicate the equipment to check:  '
+            equipment = input(ai_message)
+            initial_input = {"stage":0, "equipment":equipment}
+            input_data = initial_input
+            # Todo --> return ai_message 
+        else:
+            input_data = None
+            if len(graph.get_state(config).next)==0: # Last iteration: if there are not more next steps to execute (check it first as graph.get_state(config).next[0] throw error in last iter)
+                print('------------------------end----------------------------')
+                ai_message = "Analysis is done!"
+                print(ai_message)
+                print(df_string_encoder_decoder(df_str =event['df_output']))
+                break # no needed to call graph again
+                # Todo --> return df_str 
+            elif graph.get_state(config).next[0] == 'node_human_feedback': # Intermediate execution: the ones that require human feedback
+                print('--------------------user feedback-------------------------')
+                ai_message =  event['ai_message']
+                print("system question:", ai_message)
+                human_answer = input("Please answer the question with 'yes' or 'no':  ") 
+                graph.update_state(config, {"human_message": human_answer}, as_node="node_human_feedback")
+                # Todo --> return ai_message  
+            else:
+                print("---------------------Unknown state---------------------")
+
+        event = await graph.ainvoke(input_data, config)
+
+
+async def main_call(user_input: str, event:dict, reset_agent:bool=False): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+    
+    if reset_agent:
+        global builder
+        global memory
+        global graph
+        global config
+        builder, memory, graph, config = reset_graph()
+        print('------------------------restart-----------------------------')
+        return {'ai_message': 'agent restarted, please write the new equipment to check'}
+
+    if len(graph.get_state(config).values)==0: # First iteration
+        print('------------------------start-----------------------------')
+        ai_message = f'Hi! we will check your equipment {user_input}:  '
+        print(ai_message)
+        initial_input = {"stage":0, "equipment":user_input}
+        input_data = initial_input
+
+    else:
+        input_data = None
+        if len(graph.get_state(config).next)==0: # Last iteration: if there are not more next steps to execute (check it first as graph.get_state(config).next[0] throw error in last iter)
+            print('------------------------end----------------------------')
+            ai_message = "Analysis is done!"
+            print(ai_message)
+            print(df_string_encoder_decoder(df_str =event['df_output']))
+
+        elif graph.get_state(config).next[0] == 'node_human_feedback': # Intermediate execution: the ones that require human feedback
+            print('--------------------user feedback-------------------------')
+            ai_message =  event['ai_message']
+            print("system question:", ai_message)
+            #human_answer = input("Please answer the question with 'yes' or 'no':  ") 
+            graph.update_state(config, {"human_message": user_input}, as_node="node_human_feedback")
+            # Todo --> return ai_message  
+        else:
+            print("---------------------Unknown state---------------------")
+
+    event = await graph.ainvoke(input_data, config) # Will be executed till next interuption
+    return event
+
+# Need to be executed just once on the API life. @todo add reset function to process more than one after MVE
+def reset_graph():
     builder = build_graph()
-    # You MUST use a checkpoiner when using breakpoints. This is because your graph needs to be able to resume execution. (https://langchain-ai.github.io/langgraph/concepts/low_level/#configuration)
     memory = MemorySaver()
     graph = builder.compile(checkpointer=memory) 
-
-    stop_flag = True
-    equipment = input('Hi! Please indicate the equipment to check:  ')
     config = {"configurable": {"thread_id": "1"}}
-    initial_input = {"stage":0, "equipment":equipment}
-    event =  await graph.ainvoke(initial_input, config)
+    return builder, memory, graph, config
 
-    while stop_flag:
-
-        event = await graph.ainvoke(None, config)
-        
-        if len(graph.get_state(config).next)==0: # if there are not more next steps to execute
-            print('------------------------end----------------------------')
-            print(df_string_encoder_decoder(df_str =event['df_output']))
-            stop_flag = False
-            break
-
-        if graph.get_state(config).next[0] == 'node_human_feedback':
-            print("system question:", event['ai_message'])
-            human_answer = input("Please answer the question with 'yes' or 'no':  ") 
-            graph.update_state(config, {"human_message": human_answer}, as_node="node_human_feedback")
-
-
+builder, memory, graph, config = reset_graph()
 
 if __name__ == "__main__":
+    
     import asyncio
 
-    asyncio.run(main_call())
+    # Run all bucle
+    # asyncio.run(main_call_bucle())
+
+
+    # Run step by step: Firs step require human equipment name, the next 'no'/'yes' if criteria_8a=True
+    event_output = asyncio.run(main_call(user_input="Cooler", event={})) # 
+    print('output done 1st step', event_output)
+    event_output = asyncio.run(main_call(user_input="no", event=event_output)) # need previous even result, i.e to show next question (calculated preious call) 
+    print('output done 2nd step', event_output)
+    event_output = asyncio.run(main_call(user_input="no", event=event_output)) # need previous even result, i.e to show next question (calculated preious call) 
+    print('output done 3nd step', event_output)
+
+    event_output = asyncio.run(main_call(user_input='None', event={}, reset_agent=True)) # need previous even result, i.e to show next question (calculated preious call) 
+    print('output done 3nd step', event_output)
+    event_output = asyncio.run(main_call(user_input="Generator", event={})) # continue next use case....
+    
