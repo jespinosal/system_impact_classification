@@ -220,16 +220,11 @@ def build_graph():
     builder.add_edge("node_parse_output", END)
     return builder
 
-def mail_call():
+def mail_call_bucle_devs():
+    # For debugging purposes
     print('------------------------start-----------------------------')
-    builder = build_graph()
-    # You MUST use a checkpoiner when using breakpoints. This is because your graph needs to be able to resume execution. (https://langchain-ai.github.io/langgraph/concepts/low_level/#configuration)
-    memory = MemorySaver()
-    graph = builder.compile(checkpointer=memory) 
-
     stop_flag = True
     equipment = input('Hi! Please indicate the equipment to check:  ')
-    config = {"configurable": {"thread_id": "1"}}
     initial_input = {"stage":0, "equipment":equipment}
     for event in graph.stream(initial_input, config, stream_mode="values"):
         print('------------------------step-----------------------------')
@@ -251,7 +246,92 @@ def mail_call():
             graph.update_state(config, {"human_message": human_answer}, as_node="node_human_feedback")
 
 
+
+def main_call_bucle(): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+    
+    while True: # todo, delete loop for steamlit app call. As graph will know next step which each invoke, is not mandatory async call.
+                
+        if len(graph.get_state(config).values)==0: # First iteration
+            print('------------------------start-----------------------------')
+            ai_message = 'Hi! Please indicate the equipment to check:  '
+            equipment = input(ai_message)
+            initial_input = {"stage":0, "equipment":equipment}
+            input_data = initial_input
+            # Todo --> return ai_message 
+        else:
+            input_data = None
+            if len(graph.get_state(config).next)==0: # Last iteration: if there are not more next steps to execute (check it first as graph.get_state(config).next[0] throw error in last iter)
+                print('------------------------end----------------------------')
+                ai_message = "Analysis is done!"
+                print(ai_message)
+                print(df_string_encoder_decoder(df_str =event['df_output']))
+                break # no needed to call graph again
+                # Todo --> return df_str 
+            elif graph.get_state(config).next[0] == 'node_human_feedback': # Intermediate execution: the ones that require human feedback
+                print('--------------------user feedback-------------------------')
+                ai_message =  event['ai_message']
+                print("system question:", ai_message)
+                human_answer = input("Please answer the question with 'yes' or 'no':  ") 
+                graph.update_state(config, {"human_message": human_answer}, as_node="node_human_feedback")
+                # Todo --> return ai_message  
+            else:
+                print("---------------------Unknown state---------------------")
+
+        event = graph.invoke(input_data, config)
+
+
+def main_call(user_input: str, event:dict): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+    if len(graph.get_state(config).values)==0: # First iteration
+        print('------------------------start-----------------------------')
+        ai_message = f'Hi! we will check your equipment {user_input}:  '
+        print(ai_message)
+        initial_input = {"stage":0, "equipment":user_input}
+        input_data = initial_input
+
+    else:
+        input_data = None
+        if len(graph.get_state(config).next)==0: # Last iteration: if there are not more next steps to execute (check it first as graph.get_state(config).next[0] throw error in last iter)
+            print('------------------------end----------------------------')
+            ai_message = "Analysis is done!"
+            print(ai_message)
+            print(df_string_encoder_decoder(df_str =event['df_output']))
+
+        elif graph.get_state(config).next[0] == 'node_human_feedback': # Intermediate execution: the ones that require human feedback
+            print('--------------------user feedback-------------------------')
+            ai_message =  event['ai_message']
+            print("system question:", ai_message)
+            #human_answer = input("Please answer the question with 'yes' or 'no':  ") 
+            graph.update_state(config, {"human_message": user_input}, as_node="node_human_feedback")
+            # Todo --> return ai_message  
+        else:
+            print("---------------------Unknown state---------------------")
+
+    event = graph.invoke(input_data, config) # Will be executed till next interuption
+    return event
+
+builder = build_graph()
+memory = MemorySaver()
+graph = builder.compile(checkpointer=memory) 
+config = {"configurable": {"thread_id": "1"}}
+
+
 if __name__ == "__main__":
-    mail_call()
+
+    # Two ways to call:
+
+    # Call in loop using keyboard/human interruptions (devs testing in terminal)
+    main_call_bucle()
+
+    # Call step by step (for app calls purposes)
+    """
+    event_output = main_call(user_input="Cooler", event={})
+    print('output done 1st step', event_output)
+    event_output = main_call(user_input="no", event=event_oustatput) # need previous even result, i.e to show next question (calculated preious call) 
+    print('output done 2nd step', event_output)
+    event_output = main_call(user_input="no", event=event_output) # need previous even result, i.e to show next question (calculated preious call) 
+    print('output done 3nd step', event_output)
+    """
+    
+
 
 
