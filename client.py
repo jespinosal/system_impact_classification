@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from utils import df_string_encoder_decoder
+from custom_rag import get_map_equipment_groups
 
 
 def get_ai_output() -> pd.DataFrame:
@@ -27,3 +28,8 @@ def reset_agent() -> pd.DataFrame:
     output = req.json()
     ai_message = output['ai_message']
     return ai_message
+
+def get_group_names()->str:
+    #todo add request and put it into state on the graph to make dara accesible through the API (this is temp workaroound)
+    _, _, df_group_names = get_map_equipment_groups()
+    return df_group_names

@@ -18,19 +18,26 @@ llm = AzureChatOpenAI(
     api_version= os.getenv("AZURE_OPENAI_API_VERSION"))
 
 
+def get_map_equipment_groups():
+    # Load data sources
+    path_map_equipment_groups = os.path.join(config['folder_data_processed'], config['filename_map_equipment_groups'])
+    df_map_equipment_groups = pd.read_csv(path_map_equipment_groups)
+
+    # Parse data on string format
+    str_equipment_group_categories = ", ".join(df_map_equipment_groups['equipment_group_name'].values) # String list of aviable group names
+    str_map_equipment_groups = df_map_equipment_groups.to_string(index=False)
+
+    return str_map_equipment_groups, str_equipment_group_categories, df_map_equipment_groups
+
+
+
 def get_rag_chain():
     """Method that generate a rag chain on prompt pandas df. Be sure pipeline_etl.py has been executed to generate table dependencies. 
     Returns:
         _type_: _description_
     """
-    # Load data sources
-    path_map_equipment_groups = os.path.join(config['folder_data_processed'], config['filename_map_equipment_groups'])
-    df_map_equipment_groups = pd.read_csv(path_map_equipment_groups)
+    str_map_equipment_groups, str_equipment_group_categories, _ = get_map_equipment_groups()
 
-
-    # Parse data on string format
-    str_equipment_group_categories = ", ".join(df_map_equipment_groups['equipment_group_name'].values)
-    str_map_equipment_groups = df_map_equipment_groups.to_string(index=False)
 
     # LLM chain builder prompt + LLM + parser
     class EquipmentGroupName(BaseModel):
