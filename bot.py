@@ -50,7 +50,8 @@ def node_rag(state:AgentState):
     value_8a = True if df_equipment_score['Criteria 8a'].values[0]>0.5 else False
     print(f"According to historical data 'Criteria 8a' is : {value_8a}")
     df_equipment_score_str = df_string_encoder_decoder(df=df_equipment_score)
-    return {'df_output': df_equipment_score_str,  'criteria_8a_status': value_8a, 'stage': stage, } 
+    ai_message = f'Your request for {user_equipment} is done'
+    return {'df_output': df_equipment_score_str,  'criteria_8a_status': value_8a, 'stage': stage,  'ai_message': ai_message} 
 
 def eval_criteria_8a(state:AgentState):
     """Rooting criteria de dermine if we need to proceed with questions or not.
@@ -260,7 +261,17 @@ def main_call_bucle(): # todo add human_input as parameter and use it instead ke
         event = graph.invoke(input_data, config)
 
 
-def main_call(user_input: str, event:dict): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+def main_call(user_input: str, event:dict, reset_agent:bool=False): # todo add human_input as parameter and use it instead keyboard 'input' in lines 229 and 250
+    
+    if reset_agent:
+        global builder
+        global memory
+        global graph
+        global config
+        builder, memory, graph, config = reset_graph()
+        print('------------------------restart-----------------------------')
+        return {'ai_message': 'The agent has  been restarted, please write the new equipment to check'}
+
     if len(graph.get_state(config).values)==0: # First iteration
         print('------------------------start-----------------------------')
         ai_message = f'Hi! we will check your equipment {user_input}:  '
@@ -289,10 +300,14 @@ def main_call(user_input: str, event:dict): # todo add human_input as parameter 
     event = graph.invoke(input_data, config) # Will be executed till next interuption
     return event
 
-builder = build_graph()
-memory = MemorySaver()
-graph = builder.compile(checkpointer=memory) 
-config = {"configurable": {"thread_id": "1"}}
+def reset_graph():
+    builder = build_graph()
+    memory = MemorySaver()
+    graph = builder.compile(checkpointer=memory) 
+    config = {"configurable": {"thread_id": "1"}}
+    return builder, memory, graph, config
+
+builder, memory, graph, config = reset_graph()
 
 
 if __name__ == "__main__":
