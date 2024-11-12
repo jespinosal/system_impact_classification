@@ -4,10 +4,6 @@ from client import get_ai_output, post_human_message, reset_agent, get_group_nam
 
 st.title("System Impact classification agent")
 st.write("This is an AI assistant that drives the user to identify system impact criteria on manufacturing use cases based on historical records and human feedback")
-
-example_text_start =  "i.e Cooler"
-example_text_re_start = "i.e Generator"
-
 st.write("Start the conversation by indicating the equipment name and replying to the questions with 'yes' or 'not' if the system formulates any question.")
 
 button_3 = st.button("Show all equipment groups")
