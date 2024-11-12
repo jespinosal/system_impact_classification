@@ -242,7 +242,7 @@ async def main_call(user_input: str, event:dict, reset_agent:bool=False): # todo
         global config
         builder, memory, graph, config = reset_graph()
         print('------------------------restart-----------------------------')
-        return {'ai_message': 'agent restarted, please write the new equipment to check'}
+        return {'ai_message': 'The agent has  been restarted, please write the new equipment to check'}
 
     if len(graph.get_state(config).values)==0: # First iteration
         print('------------------------start-----------------------------')

@@ -9,8 +9,7 @@ class UserInput(BaseModel):
 
 # @todo add parser for return output as well
 class GeneratedOutput(BaseModel):     
-    text: str 
-    topic: str
+    ai_message: str 
 
 app = FastAPI()
 app.counter = 0
@@ -22,7 +21,11 @@ app.event_output = {}
 @app.post('/process_input_message')
 async def process_input_message(data:UserInput):
    human_answer = data.human_answer
-   event_output = await main_call(user_input=human_answer, event=app.event_output)
+   try:
+      event_output = await main_call(user_input=human_answer, event=app.event_output)
+   except: # If graph fail, we'll restart the agent to start from scratch
+      app.counter = 0
+      event_output = await main_call(user_input='None', event={}, reset_agent=True)
    app.event_output = event_output
    app.counter+=1
    ai_message = event_output['ai_message']
@@ -42,10 +45,10 @@ async def reset_graph():
   app.counter = 0
   event_output = await main_call(user_input='None', event={}, reset_agent=True)
   ai_message = event_output['ai_message']
+  app.event_output = event_output # reset state as well.
   return {'ai_message': ai_message}
-  
-  # Ideas more get/button functions --> Get requirment group name, get group sysnonims, 
-  # @todo add reset option to restar graph (for POC)
+ 
+ 
   
 if __name__ == '__main__':
     uvicorn.run(app, host='127.0.0.1', port=8000) # uvicorn service:app --reload    ---> http://127.0.0.1:8000/docs
