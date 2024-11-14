@@ -17,8 +17,12 @@ The Scrip will provide 3 main outputs:
 * bot.py: Once "data_processed" folder has the 3 above files you can run it on the terminal. To check the bot paths take a look to the file \playground\bot_flows_experiments_hitl_tree_default.ipynb that describe the graph work flow.
 
 ## Front and backend info:
+For MVE:
+* Backend + Frontend is available in :  frontend_mve.py >> treamlit run frontend_mve.py 
+
+For MPV
 * Backend : Based on FAST API, the service.py file provide functionalities to interact with agent using RestAPI: >> uvicorn service:app  
-* Frontend: Based on Streamlit, the file client.py encapsulate main options to interact with service trhough the front_end_st.py file >> streamlit run front_end_st.py 
+* Frontend: Based on Streamlit, the file client.py encapsulate main options to interact with service trhough the front_end_st.py file >> streamlit run frontend_mvp.py 
 
 ## Agent graph:
 The system implements to following nodes:

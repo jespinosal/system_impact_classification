@@ -40,6 +40,12 @@ def main_call(user_input: str, event:dict, reset_agent:bool=False): # todo add h
     event = st.session_state['graph'].invoke(input_data, st.session_state['config']) # Will be executed till next interuption
     return event
 
+
+def print_previous_messages(messages:list):
+    for message in messages:
+        st.write(message)
+
+
 # Need to be executed just once on the API life. @todo add reset function to process more than one after MVE
 def reset_graph():
     builder = build_graph()
@@ -52,6 +58,7 @@ def reset_graph():
     st.session_state['event'] = {}
     st.session_state['graph'] = graph
     st.session_state['config'] = config
+    st.session_state['messages'] = []
 
 st.title("System Impact classification agent")
 st.write("This is an AI assistant that drives the user to identify system impact criteria on manufacturing use cases based on historical records and human feedback")
@@ -70,6 +77,7 @@ button_show_equipment_gropus = st.button('Show equipment groups')
 if button_show_equipment_gropus:
     _, _, df_group_names = get_map_equipment_groups()
     st.dataframe(df_group_names)
+ 
 
 button_send_message = st.button('send message')
 input_text = st.text_input('Write here')
@@ -78,7 +86,9 @@ if input_text and button_send_message:
     try:
         st.session_state['event'] = main_call(user_input=input_text, event=st.session_state['event'], reset_agent=False)
         ai_message = st.session_state['event']['ai_message']
-        st.text(ai_message)
+        st.session_state['messages'].append(input_text)
+        st.session_state['messages'].append(ai_message)
+        print_previous_messages(messages=st.session_state['messages'])
     except: # If graph fail, we'll restart the agent to start from scratch
         st.session_state['event'] = main_call(user_input='None', event={}, reset_agent=True)
         ai_message = st.session_state['event']['ai_message']
@@ -87,6 +97,7 @@ if input_text and button_send_message:
 
 button_show_table = st.button("Show impact table")
 if button_show_table:
+    print_previous_messages(messages=st.session_state['messages'])
     df_output_str = st.session_state['event'].get('df_output', 'output is not done')
     if df_output_str == 'output is not done':
         df_output = pd.DataFrame([{df_output_str: "Please, provide an equipment on the chat window"}])
